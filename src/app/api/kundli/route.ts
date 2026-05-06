@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { freeAstroFetch } from "../freeastro";
 
 const API_BASE = process.env.FREEASTRO_API_BASE ?? "https://api.freeastroapi.com";
 
@@ -70,13 +71,13 @@ export async function POST(request: NextRequest) {
     node_type: birth.node_type ?? "mean",
   };
 
-  const calls: Promise<EndpointResult>[] = [
-    callFreeAstro("chart", "/api/v2/vedic/chart", baseBirth, apiKey),
+  const calls: (() => Promise<EndpointResult>)[] = [
+    () => callFreeAstro("chart", "/api/v2/vedic/chart", baseBirth, apiKey),
   ];
 
   if (options.dasha) {
     calls.push(
-      callFreeAstro(
+      () => callFreeAstro(
         "dasha",
         "/api/v2/vedic/dasha",
         {
@@ -90,16 +91,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (options.yogas) {
-    calls.push(callFreeAstro("yogas", "/api/v2/vedic/yogas", baseBirth, apiKey));
+    calls.push(() => callFreeAstro("yogas", "/api/v2/vedic/yogas", baseBirth, apiKey));
   }
 
   if (options.strength) {
-    calls.push(callFreeAstro("strength", "/api/v2/vedic/strength", baseBirth, apiKey));
+    calls.push(() => callFreeAstro("strength", "/api/v2/vedic/strength", baseBirth, apiKey));
   }
 
   if (options.vargas) {
     calls.push(
-      callFreeAstro(
+      () => callFreeAstro(
         "vargas",
         "/api/v2/vedic/vargas",
         {
@@ -112,10 +113,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (options.panchang) {
-    calls.push(callFreeAstro("panchang", "/api/v2/vedic/panchang", baseBirth, apiKey));
+    calls.push(() => callFreeAstro("panchang", "/api/v2/vedic/panchang", baseBirth, apiKey));
   }
 
-  const settled = await Promise.all(calls);
+  const settled = await runFreeAstroCalls(calls);
   const response: Record<string, unknown> = {
     input: {
       label: birth.label?.trim() || "Client",
@@ -149,6 +150,14 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(response);
 }
 
+async function runFreeAstroCalls(calls: (() => Promise<EndpointResult>)[]) {
+  const results: EndpointResult[] = [];
+  for (const call of calls) {
+    results.push(await call());
+  }
+  return results;
+}
+
 async function callFreeAstro(
   key: string,
   path: string,
@@ -156,7 +165,7 @@ async function callFreeAstro(
   apiKey: string,
 ): Promise<EndpointResult> {
   try {
-    const response = await fetch(new URL(path, API_BASE), {
+    const response = await freeAstroFetch(new URL(path, API_BASE), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -164,8 +173,7 @@ async function callFreeAstro(
       },
       body: JSON.stringify(payload),
       cache: "no-store",
-      signal: AbortSignal.timeout(18_000),
-    });
+    }, 18_000);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { freeAstroFetch } from "../../freeastro";
 
 const API_BASE = process.env.FREEASTRO_API_BASE ?? "https://api.freeastroapi.com";
 
@@ -26,11 +27,10 @@ export async function GET(request: NextRequest) {
   if (country) upstreamUrl.searchParams.set("country", country);
 
   try {
-    const response = await fetch(upstreamUrl, {
+    const response = await freeAstroFetch(upstreamUrl, {
       headers: { "x-api-key": apiKey },
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
+    }, 10_000);
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {

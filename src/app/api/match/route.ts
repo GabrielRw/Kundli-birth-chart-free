@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { freeAstroFetch } from "../freeastro";
 
 const API_BASE = process.env.FREEASTRO_API_BASE ?? "https://api.freeastroapi.com";
 
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(new URL("/api/v1/vedic/match", API_BASE), {
+    const response = await freeAstroFetch(new URL("/api/v1/vedic/match", API_BASE), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -51,8 +52,7 @@ export async function POST(request: NextRequest) {
         ayanamsha,
       }),
       cache: "no-store",
-      signal: AbortSignal.timeout(18_000),
-    });
+    }, 18_000);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {

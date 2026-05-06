@@ -46,6 +46,7 @@ Set the required server-side key:
 ```env
 FREEASTRO_API_KEY=your_freeastroapi_key_here
 FREEASTRO_API_BASE=https://api.freeastroapi.com
+FREEASTRO_MIN_INTERVAL_MS=1100
 ```
 
 Run the app:
@@ -66,11 +67,14 @@ This project is ready for Vercel's zero-config Next.js deployment.
 3. Add these Environment Variables in Vercel Project Settings for Production and Preview:
    - `FREEASTRO_API_KEY`
    - `FREEASTRO_API_BASE` with value `https://api.freeastroapi.com`
+   - `FREEASTRO_MIN_INTERVAL_MS` with value `1100`
 4. Deploy.
 
 Do not add `.env.local` to Git. The repo keeps `.env.example` trackable for setup documentation, while local environment files remain ignored.
 
 Vercel currently supports selecting Node.js through `package.json` `engines.node`; this app pins `24.x` to match Vercel's current default Node runtime family.
+
+FreeAstro free plans can be capped at 1 request per second. The server routes use `FREEASTRO_MIN_INTERVAL_MS` to pace upstream requests instead of sending chart modules in parallel. Keep `1100` for free-plan safety; lower it only if your FreeAstro plan allows higher throughput.
 
 ## Production Checks
 
