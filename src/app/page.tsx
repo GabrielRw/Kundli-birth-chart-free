@@ -268,18 +268,23 @@ const southSignCells: Record<number, { x: number; y: number }> = {
 };
 
 const eastHouseCoordinates: Record<number, { x: number; y: number }> = {
-  1: { x: 50, y: 18 },
-  2: { x: 21, y: 15 },
-  3: { x: 11, y: 36 },
-  4: { x: 23, y: 57 },
-  5: { x: 12, y: 82 },
-  6: { x: 31, y: 84 },
+  1: { x: 50, y: 14 },
+  2: { x: 24, y: 18 },
+  3: { x: 15, y: 38 },
+  4: { x: 25, y: 56 },
+  5: { x: 15, y: 81 },
+  6: { x: 31, y: 83 },
   7: { x: 50, y: 61 },
-  8: { x: 69, y: 84 },
-  9: { x: 88, y: 82 },
-  10: { x: 77, y: 57 },
-  11: { x: 89, y: 36 },
-  12: { x: 79, y: 15 },
+  8: { x: 69, y: 83 },
+  9: { x: 85, y: 81 },
+  10: { x: 75, y: 56 },
+  11: { x: 85, y: 38 },
+  12: { x: 76, y: 18 },
+};
+
+const eastHouseAnchors: Partial<Record<number, "start" | "middle" | "end">> = {
+  6: "end",
+  8: "start",
 };
 
 export default function Home() {
@@ -1232,6 +1237,82 @@ function KundliDashboard({
   );
 }
 
+function getChartPlanetTokens(planets: Planet[], includeAscendant = false) {
+  return [
+    ...(includeAscendant ? ["Asc"] : []),
+    ...planets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)),
+  ];
+}
+
+function splitChartPlanetLines(tokens: string[], maxTokensPerLine = 3) {
+  if (!tokens.length) return [];
+  const lines: string[] = [];
+  for (let index = 0; index < tokens.length; index += maxTokensPerLine) {
+    lines.push(tokens.slice(index, index + maxTokensPerLine).join(" "));
+  }
+  return lines;
+}
+
+function ChartHouseLabel({
+  x,
+  y,
+  label,
+  planetTokens,
+  anchor = "middle",
+  labelSize = 3,
+  planetSize = 2.75,
+  maxTokensPerLine = 3,
+}: {
+  x: number;
+  y: number;
+  label: string;
+  planetTokens: string[];
+  anchor?: "start" | "middle" | "end";
+  labelSize?: number;
+  planetSize?: number;
+  maxTokensPerLine?: number;
+}) {
+  const planetLines = splitChartPlanetLines(planetTokens, maxTokensPerLine);
+  const labelY = planetLines.length > 1 ? y - 4.8 : y - 3.4;
+  const planetStartY = planetLines.length > 1 ? y - 0.4 : y + 2;
+
+  return (
+    <g className="pointer-events-none">
+      <text
+        x={x}
+        y={labelY}
+        textAnchor={anchor}
+        dominantBaseline="middle"
+        paintOrder="stroke"
+        stroke="#fffdf7"
+        strokeWidth="0.9"
+        strokeLinejoin="round"
+        className="fill-[#8d1f1f] font-bold"
+        style={{ fontSize: labelSize }}
+      >
+        {label}
+      </text>
+      {planetLines.map((line, index) => (
+        <text
+          key={`${line}-${index}`}
+          x={x}
+          y={planetStartY + index * 3.5}
+          textAnchor={anchor}
+          dominantBaseline="middle"
+          paintOrder="stroke"
+          stroke="#fffdf7"
+          strokeWidth="0.95"
+          strokeLinejoin="round"
+          className="fill-stone-950 font-semibold"
+          style={{ fontSize: planetSize }}
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  );
+}
+
 function NorthIndianChart({
   planets,
   houses,
@@ -1279,25 +1360,14 @@ function NorthIndianChart({
           const housePlanets = planetByHouse.get(house) ?? [];
           const sign = signByHouse.get(house) ?? (house === 1 ? ascendantSign : undefined);
           const label = `${house}${sign ? ` · ${signGlyphs[sign]}` : ""}`;
-          const planetsLabel = `${house === 1 ? "Asc" : ""}${house === 1 && housePlanets.length ? " · " : ""}${housePlanets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)).join(" ")}`;
           return (
-            <g key={house}>
-              <rect
-                x={coord.x - 7.5}
-                y={coord.y - 7.3}
-                width="15"
-                height="11.2"
-                rx="1.2"
-                fill="#fffaf0"
-                opacity="0.72"
-              />
-              <text x={coord.x} y={coord.y - 4} textAnchor="middle" className="fill-[#8d1f1f] text-[3.2px] font-bold">
-                {label}
-              </text>
-              <text x={coord.x} y={coord.y + 1.2} textAnchor="middle" className="fill-stone-950 text-[3px] font-semibold">
-                {planetsLabel}
-              </text>
-            </g>
+            <ChartHouseLabel
+              key={house}
+              x={coord.x}
+              y={coord.y}
+              label={label}
+              planetTokens={getChartPlanetTokens(housePlanets, house === 1)}
+            />
           );
         })}
       </svg>
@@ -1383,7 +1453,6 @@ function SouthIndianChart({
           const signPlanets = planets.filter((planet) => planet.sign_id === signId);
           const isAsc = ascSign === signId;
           const label = `${house ? `${house} · ` : ""}${signGlyphs[signId]}`;
-          const planetsLabel = `${isAsc ? "Asc" : ""}${isAsc && signPlanets.length ? " · " : ""}${signPlanets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)).join(" ")}`;
           return (
             <g key={signId}>
               <rect
@@ -1395,12 +1464,15 @@ function SouthIndianChart({
                 stroke={isAsc ? "#8d1f1f" : "transparent"}
                 strokeWidth="0.8"
               />
-              <text x={cell.x + 12.5} y={cell.y + 7} textAnchor="middle" className="fill-[#8d1f1f] text-[3px] font-bold">
-                {label}
-              </text>
-              <text x={cell.x + 12.5} y={cell.y + 13} textAnchor="middle" className="fill-stone-950 text-[2.7px] font-semibold">
-                {planetsLabel}
-              </text>
+              <ChartHouseLabel
+                x={cell.x + 12.5}
+                y={cell.y + 11.3}
+                label={label}
+                planetTokens={getChartPlanetTokens(signPlanets, isAsc)}
+                labelSize={2.8}
+                planetSize={2.45}
+                maxTokensPerLine={2}
+              />
             </g>
           );
         })}
@@ -1444,39 +1516,34 @@ function EastIndianChart({
         </span>
       </div>
       <svg viewBox="0 0 100 100" role="img" aria-label="East Indian Kundli chart" className="aspect-square w-full max-w-full">
-        <rect x="1" y="1" width="98" height="98" fill="#fffdf7" stroke="#8d1f1f" strokeWidth="0.8" />
-        <line x1="1" y1="33.33" x2="99" y2="33.33" stroke="#c08a2c" strokeWidth="0.55" />
-        <line x1="1" y1="66.66" x2="99" y2="66.66" stroke="#c08a2c" strokeWidth="0.55" />
-        <line x1="33.33" y1="1" x2="33.33" y2="99" stroke="#c08a2c" strokeWidth="0.55" />
-        <line x1="66.66" y1="1" x2="66.66" y2="99" stroke="#c08a2c" strokeWidth="0.55" />
-        <path d="M33.33 1 L66.66 33.33 L33.33 66.66 L1 33.33 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
-        <path d="M66.66 1 L99 33.33 L66.66 66.66 L33.33 33.33 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
-        <path d="M33.33 33.33 L66.66 66.66 L33.33 99 L1 66.66 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
-        <path d="M66.66 33.33 L99 66.66 L66.66 99 L33.33 66.66 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
+        <rect x="1" y="1" width="98" height="98" fill="#fffdf7" stroke="#8d1f1f" strokeWidth="0.9" />
+        <g stroke="#c08a2c" strokeWidth="0.44" opacity="0.82">
+          <line x1="1" y1="33.33" x2="99" y2="33.33" />
+          <line x1="1" y1="66.66" x2="99" y2="66.66" />
+          <line x1="33.33" y1="1" x2="33.33" y2="99" />
+          <line x1="66.66" y1="1" x2="66.66" y2="99" />
+          <path d="M33.33 1 L66.66 33.33 L33.33 66.66 L1 33.33 Z" fill="none" />
+          <path d="M66.66 1 L99 33.33 L66.66 66.66 L33.33 33.33 Z" fill="none" />
+          <path d="M33.33 33.33 L66.66 66.66 L33.33 99 L1 66.66 Z" fill="none" />
+          <path d="M66.66 33.33 L99 66.66 L66.66 99 L33.33 66.66 Z" fill="none" />
+        </g>
         {Array.from({ length: 12 }, (_, index) => index + 1).map((house) => {
           const coord = eastHouseCoordinates[house];
           const housePlanets = planetByHouse.get(house) ?? [];
           const sign = signByHouse.get(house);
           const label = `${house}${sign ? ` · ${signGlyphs[sign]}` : ""}`;
-          const planetsLabel = `${house === 1 ? "Asc" : ""}${house === 1 && housePlanets.length ? " · " : ""}${housePlanets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)).join(" ")}`;
           return (
-            <g key={house}>
-              <rect
-                x={coord.x - 7.4}
-                y={coord.y - 7.2}
-                width="14.8"
-                height="11.2"
-                rx="1.1"
-                fill="#fffaf0"
-                opacity="0.7"
-              />
-              <text x={coord.x} y={coord.y - 3.8} textAnchor="middle" className="fill-[#8d1f1f] text-[2.85px] font-bold">
-                {label}
-              </text>
-              <text x={coord.x} y={coord.y + 1.4} textAnchor="middle" className="fill-stone-950 text-[2.55px] font-semibold">
-                {planetsLabel}
-              </text>
-            </g>
+            <ChartHouseLabel
+              key={house}
+              x={coord.x}
+              y={coord.y}
+              label={label}
+              planetTokens={getChartPlanetTokens(housePlanets, house === 1)}
+              anchor={eastHouseAnchors[house] ?? "middle"}
+              labelSize={2.85}
+              planetSize={2.5}
+              maxTokensPerLine={2}
+            />
           );
         })}
       </svg>
