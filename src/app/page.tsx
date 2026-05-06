@@ -252,6 +252,36 @@ const chartDescriptions: Record<ChartSettings["style"], string> = {
   east: "East Indian square",
 };
 
+const southSignCells: Record<number, { x: number; y: number }> = {
+  12: { x: 0, y: 0 },
+  1: { x: 25, y: 0 },
+  2: { x: 50, y: 0 },
+  3: { x: 75, y: 0 },
+  11: { x: 0, y: 25 },
+  4: { x: 75, y: 25 },
+  10: { x: 0, y: 50 },
+  5: { x: 75, y: 50 },
+  9: { x: 0, y: 75 },
+  8: { x: 25, y: 75 },
+  7: { x: 50, y: 75 },
+  6: { x: 75, y: 75 },
+};
+
+const eastHouseCoordinates: Record<number, { x: number; y: number }> = {
+  1: { x: 50, y: 17 },
+  2: { x: 24, y: 17 },
+  3: { x: 12, y: 38 },
+  4: { x: 24, y: 62 },
+  5: { x: 12, y: 84 },
+  6: { x: 33, y: 84 },
+  7: { x: 50, y: 63 },
+  8: { x: 67, y: 84 },
+  9: { x: 88, y: 84 },
+  10: { x: 76, y: 62 },
+  11: { x: 88, y: 38 },
+  12: { x: 76, y: 17 },
+};
+
 export default function Home() {
   const [mode, setMode] = useState<Mode>("birth");
   const [activeTab, setActiveTab] = useState<ResultTab>("chart");
@@ -1287,38 +1317,154 @@ function ChartRenderer({
   if (settings.style === "north") {
     return <NorthIndianChart planets={planets} houses={houses} ascendantSign={chart.ascendant?.sign_id} title={title} subtitle={chart.name ?? chartDescriptions[settings.style]} />;
   }
+  if (settings.style === "south") {
+    return <SouthIndianChart chart={chart} title={title} />;
+  }
+  return <EastIndianChart chart={chart} title={title} />;
+}
+
+function SouthIndianChart({
+  chart,
+  title,
+}: {
+  chart: {
+    division?: number;
+    name?: string;
+    ascendant?: { sign?: string; sign_id?: number } | undefined;
+    planets?: Planet[];
+    houses?: House[];
+  };
+  title: string;
+}) {
+  const planets = chart.planets ?? [];
+  const ascSign = chart.ascendant?.sign_id;
+  const signToHouse = new Map<number, number>();
+  (chart.houses ?? []).forEach((house) => {
+    if (house.sign_id) signToHouse.set(house.sign_id, house.house);
+  });
+
   return (
     <div className="min-w-0 overflow-hidden rounded border border-[#d7b860] bg-[#fffaf0] p-3">
       <div className="mb-2 flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-[#681414]">{title}</h3>
-          <p className="text-xs text-stone-600">{chartDescriptions[settings.style]}</p>
+          <p className="text-xs text-stone-600">South Indian fixed-sign layout</p>
         </div>
         <span className="rounded bg-white px-2 py-1 text-xs font-semibold text-[#8d1f1f]">
           D{chart.division ?? 1}
         </span>
       </div>
-      <div className={`grid aspect-square w-full gap-1 ${settings.style === "south" ? "grid-cols-4" : "grid-cols-3"}`}>
-        {Array.from({ length: settings.style === "south" ? 16 : 12 }, (_, index) => {
-          const house = houses[index % 12];
-          const housePlanets = planets.filter((planet) => planet.house === house?.house);
-          const isAsc = house?.sign_id === chart.ascendant?.sign_id;
+      <svg viewBox="0 0 100 100" role="img" aria-label="South Indian Kundli chart" className="aspect-square w-full max-w-full">
+        <rect x="1" y="1" width="98" height="98" fill="#fffdf7" stroke="#8d1f1f" strokeWidth="0.8" />
+        {[25, 50, 75].map((value) => (
+          <g key={`grid-${value}`}>
+            <line x1={value} y1="1" x2={value} y2="99" stroke="#c08a2c" strokeWidth="0.45" />
+            <line x1="1" y1={value} x2="99" y2={value} stroke="#c08a2c" strokeWidth="0.45" />
+          </g>
+        ))}
+        <rect x="26" y="26" width="48" height="48" fill="#fffaf0" stroke="#c08a2c" strokeWidth="0.5" />
+        <text x="50" y="47" textAnchor="middle" className="fill-[#681414] text-[4px] font-bold">
+          South
+        </text>
+        <text x="50" y="53" textAnchor="middle" className="fill-stone-500 text-[2.8px]">
+          Fixed signs
+        </text>
+        {Object.entries(southSignCells).map(([signIdText, cell]) => {
+          const signId = Number(signIdText);
+          const house = signToHouse.get(signId);
+          const signPlanets = planets.filter((planet) => planet.sign_id === signId);
+          const isAsc = ascSign === signId;
           return (
-            <div
-              key={`${settings.style}-${index}`}
-              className={`min-h-16 rounded border border-[#d8bd72] bg-white p-2 text-xs ${isAsc ? "ring-2 ring-[#8d1f1f]" : ""}`}
-            >
-              <div className="font-semibold text-[#681414]">
-                {house ? `H${house.house} · ${signGlyphs[house.sign_id ?? 0] ?? ""}` : ""}
-              </div>
-              <div className="mt-1 font-medium text-stone-900">
-                {isAsc ? "Asc " : ""}
-                {housePlanets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)).join(" ")}
-              </div>
-            </div>
+            <g key={signId}>
+              <rect
+                x={cell.x + 1}
+                y={cell.y + 1}
+                width="23"
+                height="23"
+                fill={isAsc ? "#fff3cf" : "#fffdf7"}
+                stroke={isAsc ? "#8d1f1f" : "transparent"}
+                strokeWidth="0.8"
+              />
+              <text x={cell.x + 12.5} y={cell.y + 7} textAnchor="middle" className="fill-[#8d1f1f] text-[3px] font-bold">
+                {house ? `${house} · ` : ""}
+                {signGlyphs[signId]}
+              </text>
+              <text x={cell.x + 12.5} y={cell.y + 13} textAnchor="middle" className="fill-stone-950 text-[2.7px] font-semibold">
+                {isAsc ? "Asc" : ""}
+                {isAsc && signPlanets.length ? " · " : ""}
+                {signPlanets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)).join(" ")}
+              </text>
+            </g>
           );
         })}
+      </svg>
+    </div>
+  );
+}
+
+function EastIndianChart({
+  chart,
+  title,
+}: {
+  chart: {
+    division?: number;
+    name?: string;
+    ascendant?: { sign?: string; sign_id?: number } | undefined;
+    planets?: Planet[];
+    houses?: House[];
+  };
+  title: string;
+}) {
+  const planets = chart.planets ?? [];
+  const houses = chart.houses ?? [];
+  const planetByHouse = new Map<number, Planet[]>();
+  planets.forEach((planet) => {
+    if (!planet.house) return;
+    planetByHouse.set(planet.house, [...(planetByHouse.get(planet.house) ?? []), planet]);
+  });
+  const signByHouse = new Map<number, number | undefined>();
+  houses.forEach((house) => signByHouse.set(house.house, house.sign_id));
+
+  return (
+    <div className="min-w-0 overflow-hidden rounded border border-[#d7b860] bg-[#fffaf0] p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-[#681414]">{title}</h3>
+          <p className="text-xs text-stone-600">East Indian square-diamond layout</p>
+        </div>
+        <span className="rounded bg-white px-2 py-1 text-xs font-semibold text-[#8d1f1f]">
+          D{chart.division ?? 1}
+        </span>
       </div>
+      <svg viewBox="0 0 100 100" role="img" aria-label="East Indian Kundli chart" className="aspect-square w-full max-w-full">
+        <rect x="1" y="1" width="98" height="98" fill="#fffdf7" stroke="#8d1f1f" strokeWidth="0.8" />
+        <line x1="1" y1="33.33" x2="99" y2="33.33" stroke="#c08a2c" strokeWidth="0.55" />
+        <line x1="1" y1="66.66" x2="99" y2="66.66" stroke="#c08a2c" strokeWidth="0.55" />
+        <line x1="33.33" y1="1" x2="33.33" y2="99" stroke="#c08a2c" strokeWidth="0.55" />
+        <line x1="66.66" y1="1" x2="66.66" y2="99" stroke="#c08a2c" strokeWidth="0.55" />
+        <path d="M33.33 1 L66.66 33.33 L33.33 66.66 L1 33.33 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
+        <path d="M66.66 1 L99 33.33 L66.66 66.66 L33.33 33.33 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
+        <path d="M33.33 33.33 L66.66 66.66 L33.33 99 L1 66.66 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
+        <path d="M66.66 33.33 L99 66.66 L66.66 99 L33.33 66.66 Z" fill="none" stroke="#c08a2c" strokeWidth="0.55" />
+        {Array.from({ length: 12 }, (_, index) => index + 1).map((house) => {
+          const coord = eastHouseCoordinates[house];
+          const housePlanets = planetByHouse.get(house) ?? [];
+          const sign = signByHouse.get(house);
+          return (
+            <g key={house}>
+              <text x={coord.x} y={coord.y - 3.8} textAnchor="middle" className="fill-[#8d1f1f] text-[3px] font-bold">
+                {house}
+                {sign ? ` · ${signGlyphs[sign]}` : ""}
+              </text>
+              <text x={coord.x} y={coord.y + 1.4} textAnchor="middle" className="fill-stone-950 text-[2.8px] font-semibold">
+                {house === 1 ? "Asc" : ""}
+                {house === 1 && housePlanets.length ? " · " : ""}
+                {housePlanets.map((planet) => planetShort[planet.name] ?? planet.name.slice(0, 2)).join(" ")}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
